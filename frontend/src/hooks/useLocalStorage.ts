@@ -88,7 +88,9 @@ export function useLocalStorage<T>(
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
         emitMutation(key);
       } catch (error) {
-        console.log(error);
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("useLocalStorage setValue failed", error);
+        }
       }
     },
     [key, initialValue],

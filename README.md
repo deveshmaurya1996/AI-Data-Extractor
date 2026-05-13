@@ -31,10 +31,10 @@ JSON body: `query` (string), optional `conversation_id`, optional `clarification
 
 Success responses always include `message` (plain-language lead), `data` (row array, often empty for conversational turns), and `metadata`:
 
-| Field | Meaning |
-|-------|---------|
-| `metadata.response_mode` | `"conversational"` when no query ran; omitted on normal data answers. |
-| `metadata.skip_sql` | `true` when no SQL was executed (conversational path). |
+| Field                                   | Meaning                                                                                                  |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `metadata.response_mode`                | `"conversational"` when no query ran; omitted on normal data answers.                                    |
+| `metadata.skip_sql`                     | `true` when no SQL was executed (conversational path).                                                   |
 | `metadata.sql` / `metadata.explanation` | Present on data path; SQL is exposed under “Why this answer?” in the UI, not as the primary bubble text. |
 
 **Example — conversational (trimmed; `message` is produced by the LLM each turn, never canned):**
@@ -76,8 +76,34 @@ Success responses always include `message` (plain-language lead), `data` (row ar
 - **Router heuristics** — Short regex/word-list routing can miss edge cases; ambiguous phrasing may still reach the LLM. The model may return the sentinel `NOT_A_DATA_QUESTION` as a secondary safety net (handled in `nl_query_pipeline.py`).
 - **Open-ended SQL** — When no template matches, **Pollinations** generates a SQL plan; quality depends on `POLLINATIONS_API_KEY` and model id. Template-friendly questions are answered from a deterministic plan builder and don't depend on the LLM for SQL.
 - **Validator** — Read-only checks, `LIMIT`, and `statement_timeout` apply (`SQLValidator`); false positives on unusual but safe SQL are possible.
-- **Seeded sample data only** — Answers reflect `db/seed.py` CSVs under **`backend/sample-data/`** (same layout as the assignment zip: `ecommerce/` and `support/` subfolders).  
+- **Seeded sample data only** — Answers reflect `db/seed.py` CSVs under **`backend/sample-data/`** (same layout as the assignment zip: `ecommerce/` and `support/` subfolders).
 - **PostgreSQL only** — The app targets Postgres with `ecommerce`, `support`, and `uploads` schemas (see `backend/db/schema.sql`). There is no checked-in SQLite variant.
+
+### Submission contents (brief → file)
+
+Direct mapping from each MNGR brief requirement to the file or folder that satisfies it.
+
+| Brief requirement                             | Where it lives in the repo                                                                                                                                                                                                                                                   |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source code (GitHub repo)                     | this repository, root [README.md](README.md), [LICENSE](LICENSE)                                                                                                                                                                                                             |
+| Database schema (`.sql`)                      | [backend/db/schema.sql](backend/db/schema.sql) — `ecommerce`, `support`, `uploads` schemas                                                                                                                                                                                   |
+| ORM (runtime DDL)                             | [backend/db/models.py](backend/db/models.py) used by `init_db()` in [backend/db/engine.py](backend/db/engine.py)                                                                                                                                                             |
+| Seed script                                   | [backend/db/seed.py](backend/db/seed.py) — `DataLoader.load_all()`, CLI: `python -m db.seed`                                                                                                                                                                                 |
+| Sample CSVs                                   | [backend/sample-data/ecommerce/](backend/sample-data/ecommerce/), [backend/sample-data/support/](backend/sample-data/support/) (8 files)                                                                                                                                     |
+| README — prerequisites & dependencies         | this README, _Prerequisites_ and _Dependencies_ sections                                                                                                                                                                                                                     |
+| README — step-by-step setup                   | this README, _Step-by-step setup and installation_                                                                                                                                                                                                                           |
+| README — run & test                           | this README, _Run and test the solution_                                                                                                                                                                                                                                     |
+| README — architecture overview                | this README, _Architecture overview_                                                                                                                                                                                                                                         |
+| README — API documentation                    | this README, _API documentation_; live OpenAPI at `/docs` and `/openapi.json`                                                                                                                                                                                                |
+| README — example queries & responses          | this README, _Example queries and responses_                                                                                                                                                                                                                                 |
+| README — known limitations & design decisions | this README, _Known limitations and design decisions_                                                                                                                                                                                                                        |
+| RESTful API endpoints                         | [backend/api/routes.py](backend/api/routes.py) — `POST /api/chat`, `POST /api/chat/upload`, `GET /api/health`, `GET /api/schema`, `GET /api/suggested-queries`                                                                                                               |
+| NLP capabilities                              | [backend/ai/](backend/ai/) — entity extraction, intent routing, query plan, templates, plan builder, LLM narrative, validator, executor                                                                                                                                      |
+| Four benchmark queries                        | [backend/tests/test_assignment_queries.py](backend/tests/test_assignment_queries.py) — `test_orders_for_hina_recent_window`, `test_open_tickets_for_ben`, `test_total_order_value_customers_with_tickets_template`, `test_customers_purchased_never_ticketed_template`       |
+| Bonus — unit tests                            | 22 files under [backend/tests/](backend/tests/), **143** tests total; frontend Jest in [frontend/src/lib/exportResults.test.ts](frontend/src/lib/exportResults.test.ts)                                                                                                      |
+| Bonus — performance                           | Indexes in `DataLoader.create_indexes()` ([backend/db/seed.py](backend/db/seed.py)), `LIMIT` + `statement_timeout` in [backend/ai/validator.py](backend/ai/validator.py), per-conversation query cache in [backend/services/query_cache.py](backend/services/query_cache.py) |
+| Bonus — interactive web UI                    | [frontend/](frontend/) — Next.js 16 App Router + Tailwind + TanStack Query                                                                                                                                                                                                   |
+| Docker run                                    | [docker-compose.yml](docker-compose.yml), [backend/Dockerfile.backend](backend/Dockerfile.backend), root [.env.example](.env.example)                                                                                                                                        |
 
 ### Submission checklist (vs brief)
 
@@ -91,13 +117,13 @@ Success responses always include `message` (plain-language lead), `data` (row ar
 
 ## Prerequisites
 
-| Requirement | Notes |
-|-------------|--------|
-| **Python** | 3.11+ (3.13 supported). Use `python -m pip` / `python -m uvicorn` if shims are not on `PATH`. |
-| **Node.js** | **20+** and **npm** (for the Next.js app). |
-| **PostgreSQL** | **Docker Desktop** recommended (`docker compose` service `postgres`), or any Postgres reachable via `DATABASE_URL`. |
-| **Windows shells** | **PowerShell** or **Command Prompt (cmd)** — setup steps list both where commands differ. |
-| **Pollinations** | **API key** and a Pollinations-compatible model id in **`POLLINATIONS_MODEL`** (see `backend/.env.example`; default base URL is Pollinations’ OpenAI-compatible endpoint). |
+| Requirement        | Notes                                                                                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Python**         | 3.11+ (3.13 supported). Use `python -m pip` / `python -m uvicorn` if shims are not on `PATH`.                                                                              |
+| **Node.js**        | **20+** and **npm** (for the Next.js app).                                                                                                                                 |
+| **PostgreSQL**     | **Docker Desktop** recommended (`docker compose` service `postgres`), or any Postgres reachable via `DATABASE_URL`.                                                        |
+| **Windows shells** | **PowerShell** or **Command Prompt (cmd)** — setup steps list both where commands differ.                                                                                  |
+| **Pollinations**   | **API key** and a Pollinations-compatible model id in **`POLLINATIONS_MODEL`** (see `backend/.env.example`; default base URL is Pollinations’ OpenAI-compatible endpoint). |
 
 Optional:
 
@@ -109,20 +135,20 @@ Optional:
 
 ### Backend (`backend/requirements.txt`)
 
-- **Web**: FastAPI, Uvicorn, python-multipart  
-- **Data**: SQLAlchemy, psycopg2-binary, pandas  
-- **Files**: openpyxl (Excel)  
+- **Web**: FastAPI, Uvicorn, python-multipart
+- **Data**: SQLAlchemy, psycopg2-binary, pandas
+- **Files**: openpyxl (Excel)
 - **AI**: OpenAI Python SDK (`openai`) as an **OpenAI-compatible HTTP client** to [Pollinations](https://gen.pollinations.ai/docs) (`chat.completions`)
-- **Config / utils**: pydantic, pydantic-settings, python-dotenv, python-dateutil, pytz, colorlog  
-- **Tests**: pytest, pytest-asyncio, httpx  
+- **Config / utils**: pydantic, pydantic-settings, python-dotenv, python-dateutil, pytz, colorlog
+- **Tests**: pytest, pytest-asyncio, httpx
 
 ### Frontend (`frontend/package.json`)
 
-- **Framework**: Next.js **16**, React **19**, TypeScript **5**  
-- **Data / HTTP**: TanStack Query, Axios  
-- **UI**: Tailwind CSS **4**, Radix UI, lucide-react, Sonner (toasts), clsx  
-- **State**: Zustand  
-- **Dev / test**: ESLint (`eslint.config.mjs`), Jest, Testing Library — see *Repository inventory* for current test coverage.
+- **Framework**: Next.js **16**, React **19**, TypeScript **5**
+- **Data / HTTP**: TanStack Query, Axios
+- **UI**: Tailwind CSS **4**, Radix UI, lucide-react, Sonner (toasts), clsx
+- **State**: Zustand
+- **Dev / test**: ESLint (`eslint.config.mjs`), Jest, Testing Library — see _Repository inventory_ for current test coverage.
 
 ---
 
@@ -132,8 +158,8 @@ This section matches **this repository as it exists**: filenames, wiring, and ga
 
 ### Repo root
 
-| Present | Missing (not an error; just fact) |
-|--------|-------------------------------------|
+| Present                                                  | Missing (not an error; just fact)                                                                                |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `README.md`, `docker-compose.yml`, **root `.gitignore`** | No root `package.json`, no root `LICENSE` (only `backend/.gitignore` and `frontend/.gitignore` for subprojects). |
 
 ### Backend (`backend/`)
@@ -149,8 +175,9 @@ This section matches **this repository as it exists**: filenames, wiring, and ga
 
 **Database (`db/`):** `engine.py` (`get_db`, `init_db` → SQLAlchemy `create_all` from `models.py`), `seed.py`, `models.py`, **`schema.sql`** (reviewer-friendly DDL mirror of ecommerce/support/uploads — keep in sync when models change; see `DDL_EXPORT.md` for `pg_dump` regeneration), **`DDL_EXPORT.md`**. **Canonical DDL** at runtime is still the ORM in `models.py`; **Alembic is not used** (see below).
 
-**Sample CSVs (`sample-data/`):**  
-- `ecommerce/`: `ecom_categories.csv`, `ecom_customers.csv`, `ecom_products.csv`, `ecom_orders.csv`  
+**Sample CSVs (`sample-data/`):**
+
+- `ecommerce/`: `ecom_categories.csv`, `ecom_customers.csv`, `ecom_products.csv`, `ecom_orders.csv`
 - `support/`: `support_customers.csv`, `support_agents.csv`, `support_tickets.csv`, `support_interactions.csv` → loaded into table **`ticket_notes`** (see `db/seed.py` `load_jobs`).
 
 **Scripts:** `scripts/verify_pipeline.py` — async integration check (Pollinations chat ping optional, seed with `clear_first=True`, template SQL, one `ChatService` query).
@@ -173,16 +200,16 @@ This section matches **this repository as it exists**: filenames, wiring, and ga
 
 ### Gaps and mismatches (pinpoint)
 
-| Topic | Fact in code |
-|-------|----------------|
-| `POST /api/chat/upload` | Parses and **persists** uploads under `uploads.*` and returns a **preview** in the response — it does **not** run the full NL→validate→execute pipeline **in that same request**. After upload, send **`POST /api/chat`** (JSON) with the same **`conversation_id`** to ask questions; the pipeline may then attach **upload schema hints** when uploads exist. |
-| `POST /api/chat/upload` + `clarification_selection` | Multipart accepts `clarification_selection` for API symmetry; **upload handling does not consume it** (disambiguation is for JSON chat after entity extraction). |
-| `conversation_id` | Used for **upload persistence**, **query cache** scoping, and client correlation — not a separate server-side “thread store” beyond those features. |
+| Topic                                               | Fact in code                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/chat/upload`                             | Parses and **persists** uploads under `uploads.*` and returns a **preview** in the response — it does **not** run the full NL→validate→execute pipeline **in that same request**. After upload, send **`POST /api/chat`** (JSON) with the same **`conversation_id`** to ask questions; the pipeline may then attach **upload schema hints** when uploads exist. |
+| `POST /api/chat/upload` + `clarification_selection` | Multipart accepts `clarification_selection` for API symmetry; **upload handling does not consume it** (disambiguation is for JSON chat after entity extraction).                                                                                                                                                                                                |
+| `conversation_id`                                   | Used for **upload persistence**, **query cache** scoping, and client correlation — not a separate server-side “thread store” beyond those features.                                                                                                                                                                                                             |
 
 ### Suggested improvements (optional backlog)
 
-1. Add Alembic (or another migration tool) if you need versioned SQL migrations in production.  
-2. Expand frontend Jest coverage (components, hooks) beyond `exportResults`.  
+1. Add Alembic (or another migration tool) if you need versioned SQL migrations in production.
+2. Expand frontend Jest coverage (components, hooks) beyond `exportResults`.
 3. Optional auth: if you add JWT or session cookies, re-introduce a **`/login`** route and tighten the Axios `401` handler (today it only clears `auth_token` and rejects — no redirect).
 
 ---
@@ -219,8 +246,8 @@ copy .env.example .env
 
 Edit **`backend/.env`** (never commit real secrets):
 
-- **`POLLINATIONS_API_KEY`** — set for LLM-backed SQL when templates do not apply (empty skips live LLM until configured).  
-- **`DATABASE_URL`** — e.g. `postgresql://postgres:postgres@localhost:5432/chatbot` for local Docker Postgres.  
+- **`POLLINATIONS_API_KEY`** — set for LLM-backed SQL when templates do not apply (empty skips live LLM until configured).
+- **`DATABASE_URL`** — e.g. `postgresql://postgres:postgres@localhost:5432/chatbot` for local Docker Postgres.
 
 Optional: `POLLINATIONS_MODEL`, `POLLINATIONS_BASE_URL`, `POLLINATIONS_TIMEOUT`, `CORS_ORIGINS` (JSON array of origins), `DEBUG`, logging fields — see `.env.example`. **`MAX_ROWS_PER_QUERY`** and **`QUERY_TIMEOUT_MS`** tune the validator’s appended `LIMIT` and `statement_timeout`. Unknown env keys (e.g. legacy `OPENAI_*`) are **ignored** at startup.
 
@@ -295,10 +322,12 @@ App: [http://localhost:3000](http://localhost:3000)
 
 ### Docker: API + Postgres together
 
-1. Put **`POLLINATIONS_API_KEY`** in a **`.env` file next to `docker-compose.yml`** (repo root), or set it in the shell for that session only:  
-   - **PowerShell:** `$env:POLLINATIONS_API_KEY = "your-key-here"`  
-   - **CMD:** `set POLLINATIONS_API_KEY=your-key-here`  
-   - **macOS / Linux:** `export POLLINATIONS_API_KEY=your-key-here`  
+> Compose ships **Postgres + backend only** by design. The Next.js frontend runs locally via `npm install && npm run dev` (step 7 above) — there is no `frontend` service in `docker-compose.yml`.
+
+1. Put **`POLLINATIONS_API_KEY`** in a **`.env` file next to `docker-compose.yml`** (repo root — copy `/.env.example`), or set it in the shell for that session only:
+   - **PowerShell:** `$env:POLLINATIONS_API_KEY = "your-key-here"`
+   - **CMD:** `set POLLINATIONS_API_KEY=your-key-here`
+   - **macOS / Linux:** `export POLLINATIONS_API_KEY=your-key-here`
 2. From repo root:
 
 ```bat
@@ -314,8 +343,8 @@ API: [http://127.0.0.1:8000](http://127.0.0.1:8000). The `backend` service bind-
 
 ### Smoke the stack
 
-1. **API liveness**: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health) — expect JSON `status: healthy`.  
-2. **Root**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/) — service name and version.  
+1. **API liveness**: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health) — expect JSON `status: healthy`.
+2. **Root**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/) — service name and version.
 3. **UI**: Open the frontend URL and send a suggested query.
 
 ### Backend integration script (Pollinations + seed + template path)
@@ -330,7 +359,7 @@ Steps: Pollinations chat ping (skipped on failure), seed/clear, template SQL + v
 
 ### Automated tests
 
-**Backend** (from `backend/`, venv active): **124** tests in `tests/` (see *Repository inventory*; run `pytest` to confirm).
+**Backend** (from `backend/`, venv active): **143** tests in `tests/` (see _Repository inventory_; run `pytest` to confirm).
 
 ```bat
 python -m pytest tests\ -q
@@ -421,16 +450,16 @@ flowchart LR
   EE --> PG
 ```
 
-- **Text chat (`POST /api/chat`)**: `ChatService` → `NLQueryPipeline`: resolve entities from the user text (DB-backed customer search), optionally return **clarification** when multiple customers match, classify intent, then either run a **deterministic SQL template** or call the **LLM (Pollinations)** to propose SQL. SQL is **validated** before execution; results are **formatted** for the client.  
-- **File upload (`POST /api/chat/upload`)**: Parses **CSV, Excel, JSON, or TXT**, **persists** rows under the **`uploads`** schema (scoped by `conversation_id`), and returns a **preview** in the response. A follow-up **`POST /api/chat`** with the same `conversation_id` runs the NL pipeline (templates may be disabled when uploads exist; SQL generation can include upload schema hints).  
+- **Text chat (`POST /api/chat`)**: `ChatService` → `NLQueryPipeline`: resolve entities from the user text (DB-backed customer search), optionally return **clarification** when multiple customers match, classify intent, then either run a **deterministic SQL template** or call the **LLM (Pollinations)** to propose SQL. SQL is **validated** before execution; results are **formatted** for the client.
+- **File upload (`POST /api/chat/upload`)**: Parses **CSV, Excel, JSON, or TXT**, **persists** rows under the **`uploads`** schema (scoped by `conversation_id`), and returns a **preview** in the response. A follow-up **`POST /api/chat`** with the same `conversation_id` runs the NL pipeline (templates may be disabled when uploads exist; SQL generation can include upload schema hints).
 - **Frontend**: **`ChatMutationProvider`** (in `MainLayout`) owns the single TanStack **`useMutation`** for chat (with **`AbortSignal`** per send), syncs **`loading`** into Zustand, and applies server payloads. Zustand persists the transcript; Sonner surfaces errors. **`ClarificationDialog`** is Radix **`Dialog`** (Escape, overlay, close button) and receives **`onSelectClarification`** + **`isPending`** from the parent — no nested mutation hooks inside the modal.
 
 **Repo layout**
 
-- `backend/` — `main.py` (app, CORS, lifespan, `init_db`), `api/` (routes, Pydantic schemas), `services/`, `ai/`, `db/`, `sample-data/`, `scripts/verify_pipeline.py`  
-- `frontend/` — Next.js App Router, `src/api`, `src/components`, `src/hooks`, `src/store`  
-- `docker-compose.yml` — Postgres + optional backend  
-- `backend/Dockerfile.backend` — API image  
+- `backend/` — `main.py` (app, CORS, lifespan, `init_db`), `api/` (routes, Pydantic schemas), `services/`, `ai/`, `db/`, `sample-data/`, `scripts/verify_pipeline.py`
+- `frontend/` — Next.js App Router, `src/api`, `src/components`, `src/hooks`, `src/store`
+- `docker-compose.yml` — Postgres + optional backend
+- `backend/Dockerfile.backend` — API image
 
 ---
 
@@ -438,26 +467,26 @@ flowchart LR
 
 Base path for routers: **`/api`**. FastAPI also exposes **`GET /`** (service banner).
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/chat` | JSON body: natural-language query against seeded DB (see request schema below). |
-| `POST` | `/api/chat/upload` | `multipart/form-data`: field **`files`** (one or more); optional **`query`**, **`conversation_id`**, **`clarification_selection`** (JSON string). Parses files, **persists** rows to **`uploads`**, returns **preview** `data` plus `metadata.mode` = **`upload_persisted`**. Does **not** run NL→SQL in this same request — use **`POST /api/chat`** next. |
-| `GET` | `/api/health` | Liveness. |
-| `GET` | `/api/schema` | Static reference of ecommerce/support table column names. |
-| `GET` | `/api/suggested-queries` | Example prompt strings for the UI. |
+| Method | Path                     | Description                                                                                                                                                                                                                                                                                                                                                 |
+| ------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/api/chat`              | JSON body: natural-language query against seeded DB (see request schema below).                                                                                                                                                                                                                                                                             |
+| `POST` | `/api/chat/upload`       | `multipart/form-data`: field **`files`** (one or more); optional **`query`**, **`conversation_id`**, **`clarification_selection`** (JSON string). Parses files, **persists** rows to **`uploads`**, returns **preview** `data` plus `metadata.mode` = **`upload_persisted`**. Does **not** run NL→SQL in this same request — use **`POST /api/chat`** next. |
+| `GET`  | `/api/health`            | Liveness.                                                                                                                                                                                                                                                                                                                                                   |
+| `GET`  | `/api/schema`            | Static reference of ecommerce/support table column names.                                                                                                                                                                                                                                                                                                   |
+| `GET`  | `/api/suggested-queries` | Example prompt strings for the UI.                                                                                                                                                                                                                                                                                                                          |
 
 **`POST /api/chat` request body** (`ChatRequest`)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `query` | string | Yes | Natural language question. |
-| `conversation_id` | string | No | Passed through for client correlation; not required for core pipeline logic today. |
-| `clarification_selection` | object | No | After a **`clarification`** response, send the same `query` again with **`{ id, name, schema, email? }`** for the chosen customer; **`NLQueryPipeline`** merges it before classification. Prefer **`email`** when the server includes it so cross-domain joins use a stable key. (Ignored for upload-only flows.) |
+| Field                     | Type   | Required | Description                                                                                                                                                                                                                                                                                                       |
+| ------------------------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `query`                   | string | Yes      | Natural language question.                                                                                                                                                                                                                                                                                        |
+| `conversation_id`         | string | No       | Passed through for client correlation; not required for core pipeline logic today.                                                                                                                                                                                                                                |
+| `clarification_selection` | object | No       | After a **`clarification`** response, send the same `query` again with **`{ id, name, schema, email? }`** for the chosen customer; **`NLQueryPipeline`** merges it before classification. Prefer **`email`** when the server includes it so cross-domain joins use a stable key. (Ignored for upload-only flows.) |
 
 **Response discriminated union** (`type` field)
 
-- **`success`**: `message`, `data` (array of row objects), `metadata` (e.g. SQL, strategy, confidence when formatter supplies them).  
-- **`clarification`**: `message`, `suggestions` — list of `{ id, name, schema, email? }` for duplicate customer names; optional `metadata` (e.g. `conversation_id`).  
+- **`success`**: `message`, `data` (array of row objects), `metadata` (e.g. SQL, strategy, confidence when formatter supplies them).
+- **`clarification`**: `message`, `suggestions` — list of `{ id, name, schema, email? }` for duplicate customer names; optional `metadata` (e.g. `conversation_id`).
 - **`error`**: `message`, optional `suggestions` (string hints).
 
 **CORS**: Allowed origins come from `CORS_ORIGINS` in `backend/.env` (list of strings). Include your frontend origin (e.g. `http://localhost:3000`).
@@ -470,9 +499,9 @@ Base path for routers: **`/api`**. FastAPI also exposes **`GET /`** (service ban
 
 Use these against a **seeded** database to mirror the rubric (see `backend/tests/test_assignment_queries.py` for SQL-level assertions when Postgres is available):
 
-1. **Ecommerce — orders in window** — e.g. orders for **Hina Patel** in the last calendar month (relative dates are normalized in the pipeline).  
-2. **Support — open tickets** — e.g. open tickets for **Ben Okafor**.  
-3. **Cross-domain — spend with any ticket** — total order value per customer who has **any** support ticket (join **`ecommerce.customers`** ↔ **`support.customers`** on **`LOWER(TRIM(email))`**).  
+1. **Ecommerce — orders in window** — e.g. orders for **Hina Patel** in the last calendar month (relative dates are normalized in the pipeline).
+2. **Support — open tickets** — e.g. open tickets for **Ben Okafor**.
+3. **Cross-domain — spend with any ticket** — total order value per customer who has **any** support ticket (join **`ecommerce.customers`** ↔ **`support.customers`** on **`LOWER(TRIM(email))`**).
 4. **Cross-domain — orders, no tickets** — customers with orders who **never** opened a ticket (anti-join / `NOT EXISTS` on the same email key).
 
 ### Example A — Success (template-friendly)
@@ -496,9 +525,7 @@ On **`type: "success"`** after the formatter, **`metadata`** normally includes a
 {
   "type": "success",
   "message": "Alice Chen has 1 matching order in the seeded data; see the table for details.",
-  "data": [
-    { "id": 1, "name": "Alice", "email": "alice@example.com" }
-  ],
+  "data": [{ "id": 1, "name": "Alice", "email": "alice@example.com" }],
   "metadata": {
     "sql": "SELECT …",
     "strategy": "template",
@@ -549,8 +576,8 @@ The UI (`ClarificationDialog`) sends the **same** user `query` again with **`cla
 
 ### Reference data model (seeded)
 
-- **`ecommerce`**: `customers`, `orders`, `products`, `categories`  
-- **`support`**: `customers`, `tickets`, `agents`, `ticket_notes`  
+- **`ecommerce`**: `customers`, `orders`, `products`, `categories`
+- **`support`**: `customers`, `tickets`, `agents`, `ticket_notes`
 
 Column lists: `GET /api/schema`.
 
@@ -562,11 +589,11 @@ Column lists: `GET /api/schema`.
 
 Before recording the demo video and pushing to GitHub:
 
-1. **`docker compose up -d postgres`** (or your own Postgres) and set **`backend/.env`** `DATABASE_URL` if needed.  
-2. **Seed**: from `backend/`, run your usual init/seed path (e.g. start the API once so tables exist, then run the seed loader / `scripts/verify_pipeline.py`).  
-3. **Automated tests**: `cd backend && python -m pytest -q` — expect all green. For assignment SQL only (requires live Postgres + seed): `python -m pytest tests/test_assignment_queries.py -q`.  
-4. **Optional integration script**: `python scripts/verify_pipeline.py` (hits DB + template + one cross-domain chat query; Pollinations step may skip without a key).  
-5. **UI**: start backend + frontend; run the **four assessment example queries** from the MNGR brief (orders in last month, open tickets, total order value with tickets, purchases without tickets) plus **one file upload** then a follow-up **`POST /api/chat`** with the same `conversation_id`.  
+1. **`docker compose up -d postgres`** (or your own Postgres) and set **`backend/.env`** `DATABASE_URL` if needed.
+2. **Seed**: from `backend/`, run your usual init/seed path (e.g. start the API once so tables exist, then run the seed loader / `scripts/verify_pipeline.py`).
+3. **Automated tests**: `cd backend && python -m pytest -q` — expect all green. For assignment SQL only (requires live Postgres + seed): `python -m pytest tests/test_assignment_queries.py -q`.
+4. **Optional integration script**: `python scripts/verify_pipeline.py` (hits DB + template + one cross-domain chat query; Pollinations step may skip without a key).
+5. **UI**: start backend + frontend; run the **four assessment example queries** from the MNGR brief (orders in last month, open tickets, total order value with tickets, purchases without tickets) plus **one file upload** then a follow-up **`POST /api/chat`** with the same `conversation_id`.
 6. **Publish**: push the repo; record and upload the **video demo** per submission instructions.
 
 **Demo video script (about 2–3 minutes):** (1) Show stack coming up with Docker seed. (2) One ecommerce tabular query. (3) One support query. (4) Two cross-domain queries (with tickets / without tickets). (5) Optional: clarification flow (modal, Escape to dismiss). (6) Optional: open **`/docs`** or mention **`/openapi.json`**.
@@ -575,7 +602,7 @@ Before recording the demo video and pushing to GitHub:
 
 ## Known limitations and design decisions
 
-*(See **Repository inventory** for file-level gaps and upload/chat behavior.)*
+_(See **Repository inventory** for file-level gaps and upload/chat behavior.)_
 
 1. **LLM-required for every chat reply**: Every user-facing message is produced by `ai/narrative_generator.py` via Pollinations — including greetings, capability questions, error narratives, and tabular summaries. There is **no canned-string fallback**: if the LLM call fails (missing `POLLINATIONS_API_KEY`, quota, network), the chat returns a clear `type: "error"` message asking the operator to fix the LLM configuration. SQL itself is still deterministic (templates + plan builder), so the four assignment benchmark queries are unaffected by LLM availability for SQL — only the user-facing narrative is. Each turn adds ~300–800 ms of LLM latency.
 
@@ -595,10 +622,10 @@ Before recording the demo video and pushing to GitHub:
 
 ## Troubleshooting
 
-- **`Connection refused` on 5432**: Run `docker compose up -d postgres` or fix `DATABASE_URL` host/port.  
-- **`POLLINATIONS_API_KEY` missing in Docker**: Set it in repo-root `.env` for Compose variable substitution, or set it in the shell before `docker compose up` (PowerShell: `$env:POLLINATIONS_API_KEY = "…"`; CMD: `set POLLINATIONS_API_KEY=…`).  
-- **`pip install` / `pydantic-core` build failures on Windows**: Use Python 3.11–3.13 from python.org; install VS Build Tools only if wheels are unavailable.  
-- **CORS errors in the browser**: Add the exact browser origin to `CORS_ORIGINS` in `backend/.env`.  
+- **`Connection refused` on 5432**: Run `docker compose up -d postgres` or fix `DATABASE_URL` host/port.
+- **`POLLINATIONS_API_KEY` missing in Docker**: Set it in repo-root `.env` for Compose variable substitution, or set it in the shell before `docker compose up` (PowerShell: `$env:POLLINATIONS_API_KEY = "…"`; CMD: `set POLLINATIONS_API_KEY=…`).
+- **`pip install` / `pydantic-core` build failures on Windows**: Use Python 3.11–3.13 from python.org; install VS Build Tools only if wheels are unavailable.
+- **CORS errors in the browser**: Add the exact browser origin to `CORS_ORIGINS` in `backend/.env`.
 - **LLM quota / 429**: Backend returns a clear `error` message; check your Pollinations plan or use template-matching queries where possible.
 
 ---

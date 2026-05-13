@@ -137,6 +137,7 @@ export function ChatMutationProvider({
           message: response.message,
           suggestions: response.suggestions || [],
           timestamp: new Date(),
+          sourceUserQuery: query,
         };
         addMessage(clarificationMessage);
       } else if (response.type === "error") {
@@ -206,13 +207,34 @@ export function ChatMutationProvider({
   const handleClarificationSelection = useCallback(
     async (query: string, selection: ClarificationSuggestion) => {
       try {
+        const q = query.trim();
+        if (!q) {
+          showChatError(
+            "Could not send your choice: missing original question. Please ask again.",
+          );
+          return;
+        }
+        const sid = Number(selection.id);
+        if (!Number.isFinite(sid)) {
+          showChatError("Invalid choice. Please tap an option again.");
+          return;
+        }
         const payload: ChatRequestPayload = {
-          query,
-          conversation_id: conversationId,
-          clarification_selection: selection,
+          query: q,
+          ...(conversationId?.trim()
+            ? { conversation_id: conversationId.trim() }
+            : {}),
+          clarification_selection: {
+            id: sid,
+            name: String(selection.name ?? ""),
+            schema: String(selection.schema ?? ""),
+            ...(selection.email != null && String(selection.email).trim() !== ""
+              ? { email: String(selection.email) }
+              : {}),
+          },
         };
         const response = await mutation.mutateAsync(payload);
-        applyResponse(query, response);
+        applyResponse(q, response);
       } catch (err: unknown) {
         if (axios.isCancel(err)) {
           return;

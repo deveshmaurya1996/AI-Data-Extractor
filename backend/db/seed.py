@@ -1,6 +1,6 @@
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 import pandas as pd
 from sqlalchemy import text
@@ -27,7 +27,7 @@ SEED_LOAD_COLUMNS: dict[tuple[str, str], frozenset[str]] = {
 }
 
 
-class DataLoader:   
+class DataLoader:
     def __init__(self):
         self.engine = engine
         self.session = SessionLocal()
@@ -148,7 +148,9 @@ class DataLoader:
         for c in extras:
             logger.warning("seed: dropping unknown column %s.%s.%s", schema, table, c)
         keep = [c for c in df.columns if c in allowed]
-        return df[keep].copy() if keep else df
+        if not keep:
+            return df
+        return cast(pd.DataFrame, df[keep].copy())
 
     def _convert_types(self, df: pd.DataFrame) -> pd.DataFrame:
         for col in df.columns:
@@ -157,7 +159,10 @@ class DataLoader:
             elif "date" in col or "created" in col or "updated" in col:
                 df[col] = pd.to_datetime(df[col], errors="coerce")
             elif col == "id" or col.endswith("_id"):
-                df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+                col_numeric = cast(
+                    pd.Series, pd.to_numeric(df[col], errors="coerce")
+                )
+                df[col] = col_numeric.astype("Int64")
 
         return df
     
@@ -175,8 +180,10 @@ class DataLoader:
         }
         
         for col in required.get((schema, table), []):
-            if df[col].isnull().any():
-                errors.append(f"Column '{col}' has {df[col].isnull().sum()} null values")
+            null_series = cast(pd.Series, df[col].isnull())
+            null_count = int(null_series.sum())
+            if null_count > 0:
+                errors.append(f"Column '{col}' has {null_count} null values")
         
         return errors
     
@@ -240,16 +247,15 @@ class DataLoader:
         return results
 
 
-def main():
+def main() -> None:
     loader = DataLoader()
     results = loader.load_all()
-    
-    print("\n" + "="*60)
-    print("LOAD SUMMARY")
-    print("="*60)
-    for table, result in results.items():
-        print(f"{table}: {result['rows_loaded']} rows")
-    print("="*60 + "\n")
+
+    divider = "=" * 60
+    rows = "\n".join(
+        f"  {table}: {result['rows_loaded']} rows" for table, result in results.items()
+    )
+    logger.info("\n%s\nLOAD SUMMARY\n%s\n%s\n%s", divider, divider, rows, divider)
 
 
 if __name__ == "__main__":

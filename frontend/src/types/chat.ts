@@ -35,6 +35,7 @@ export interface ClarificationMessage {
   message: string;
   suggestions: ClarificationSuggestion[];
   timestamp: Date;
+  sourceUserQuery?: string;
 }
 
 export interface ErrorMessage {

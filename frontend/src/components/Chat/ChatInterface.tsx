@@ -1,23 +1,32 @@
 import React, { useEffect, useRef } from "react";
 import { useChat } from "@/hooks/useChat";
-import { useChatMutation } from "@/context/ChatMutationContext";
-import { useChatStore } from "@/store/chatStore";
 import { useSuggestedQueries } from "@/api/hooks";
 import { ChatInput } from "./ChatInput";
 import { MessageBubble } from "./MessageBubble";
 import { ResultsContainer } from "../Results/ResultsContainer";
-import { ClarificationDialog } from "../Clarification/ClarificationDialog";
 import { SuggestedQueries } from "./SuggestedQueries";
 import { LoadingSpinner } from "../Common/LoadingSpinner";
-import type { ChatMessage, ClarificationMessage } from "@/types/chat";
+import type {
+  ClarificationSuggestion,
+  Message,
+} from "@/types/chat";
+
+function findPriorUserQuery(
+  messages: Message[],
+  clarificationIndex: number,
+): string {
+  for (let i = clarificationIndex - 1; i >= 0; i--) {
+    const m = messages[i];
+    if ("role" in m && m.role === "user") {
+      return m.content;
+    }
+  }
+  return "";
+}
 
 export const ChatInterface: React.FC = () => {
   const { messages, loading, handleSendMessage, handleClarificationSelection } =
     useChat();
-  const { isChatPending } = useChatMutation();
-  const removeClarificationMessages = useChatStore(
-    (s) => s.removeClarificationMessages,
-  );
 
   const { data: suggestedQueriesData } = useSuggestedQueries();
   const messagesScrollRef = useRef<HTMLDivElement>(null);
@@ -30,14 +39,6 @@ export const ChatInterface: React.FC = () => {
     });
     return () => cancelAnimationFrame(id);
   }, [messages, loading]);
-
-  const clarificationMessage = messages.find(
-    (m) => "type" in m && m.type === "clarification",
-  ) as ClarificationMessage | undefined;
-
-  const lastUserMessage = [...messages]
-    .reverse()
-    .find((m) => "role" in m && m.role === "user") as ChatMessage | undefined;
 
   return (
     <div className="flex flex-col h-full w-full bg-white overflow-hidden">
@@ -53,11 +54,23 @@ export const ChatInterface: React.FC = () => {
           </div>
         ) : (
           <>
-            {messages.map((message) => (
+            {messages.map((message, idx) => (
               <div key={message.id}>
                 <MessageBubble
                   message={message}
                   onFollowUpClick={handleSendMessage}
+                  onClarificationSelect={
+                    "type" in message && message.type === "clarification"
+                      ? (userQuery, selection: ClarificationSuggestion) => {
+                          const q = (
+                            userQuery ||
+                            message.sourceUserQuery ||
+                            findPriorUserQuery(messages, idx)
+                          ).trim();
+                          return handleClarificationSelection(q, selection);
+                        }
+                      : undefined
+                  }
                 />
 
                 {"role" in message &&
@@ -81,20 +94,6 @@ export const ChatInterface: React.FC = () => {
       )}
 
       <ChatInput onSubmit={handleSendMessage} disabled={loading} />
-
-      {clarificationMessage && lastUserMessage && (
-        <ClarificationDialog
-          message={clarificationMessage}
-          open
-          onOpenChange={(next) => {
-            if (!next) removeClarificationMessages();
-          }}
-          onSelectClarification={(selection) =>
-            handleClarificationSelection(lastUserMessage.content, selection)
-          }
-          isPending={isChatPending}
-        />
-      )}
     </div>
   );
 };
